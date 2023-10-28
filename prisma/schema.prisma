@@ -1,0 +1,408 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model User {
+  id                String             @id @db.Uuid
+  name              String?
+  email             String
+  username          String             @unique
+  birthdate         DateTime?
+  growCycles        GrowCycle[]
+  growSpaces        GrowSpace[]
+  journalEntries    JournalEntry[]
+  userRoles         UserRole[]
+  userSubscriptions UserSubscription[]
+  invitationsLeft   Int                @default(0)
+  sentInvitations   UserInvitation[] // Invitations sent by this user
+  vault             Vault?
+  cultivars         GrowerCultivar[]
+  GrowAction        GrowAction[]
+  JournalEntryLike  JournalEntryLike[]
+}
+
+model AccessRole {
+  id          BigInt     @id @default(autoincrement())
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  name        String     @default("")
+  rank        BigInt     @default(0)
+  description String?    @default("")
+  userRoles   UserRole[]
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+model UserInvitation {
+  id             BigInt           @id @default(autoincrement())
+  inviterId      String           @db.Uuid
+  inviter        User             @relation(fields: [inviterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inviteeEmail   String // Email of the person being invited
+  status         InvitationStatus @default(PENDING)
+  token          String           @unique
+  createdAt      DateTime?        @default(now()) @db.Timestamptz(6)
+  expirationDate DateTime         @default(dbgenerated("(now() + '24:00:00'::interval)")) @db.Timestamp(6)
+}
+
+model SubscriptionPlan {
+  id                   BigInt             @id @default(autoincrement())
+  name                 String
+  description          String?
+  monthlyPrice         Float
+  yearlyPrice          Float?
+  stripeMonthlyPriceId String?
+  stripeYearlyPriceId  String?
+  productId            String?
+  growSpaces           Int
+  activeGrowCycles     Int
+  plantsPerGrowCycle   Int
+  userSubscriptions    UserSubscription[]
+}
+
+model UserSubscription {
+  id                   BigInt            @id @default(autoincrement())
+  userId               String            @db.Uuid
+  user                 User              @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subscriptionPlanId   BigInt
+  subscriptionPlan     SubscriptionPlan  @relation(fields: [subscriptionPlanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  activationDate       DateTime          @default(now()) @db.Date
+  expiryDate           DateTime?         @db.Date
+  paymentStatus        PaymentStatusType
+  stripeSubscriptionId String?
+  isActive             Boolean           @default(true)
+}
+
+enum PaymentStatusType {
+  FREE
+  PAID_MONTHLY
+  PAID_YEARLY
+  CANCELLED
+  OVERDUE
+}
+
+model UserRole {
+  id           BigInt      @id @default(autoincrement())
+  createdAt    DateTime?   @default(now()) @db.Timestamptz(6)
+  userId       String      @db.Uuid
+  user         User        @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accessRoleId BigInt?
+  accessRole   AccessRole? @relation(fields: [accessRoleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Versions {
+  id          BigInt    @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  createdAt   DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model FeatureFlag {
+  id          BigInt    @id @default(autoincrement())
+  createdAt   DateTime? @default(now()) @db.Timestamptz(6)
+  name        String    @unique
+  description String?
+  isEnabled   Boolean   @default(false)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Announcement {
+  id               BigInt           @id(map: "maintenance_pkey") @default(autoincrement())
+  start            DateTime?        @db.Timestamptz(6)
+  finish           DateTime?        @db.Timestamptz(6)
+  createdAt        DateTime?        @default(now()) @db.Timestamptz(6)
+  announcementType AnnouncementType
+}
+
+enum AnnouncementType {
+  Maintenance
+  Outage
+  Update
+  NewFeature
+  BugFix
+}
+
+///  ======================================== BREEDER & CULTIVAR MODELS ========================================
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Breeder {
+  id         BigInt     @id @default(autoincrement())
+  name       String
+  country    String?
+  state      String?
+  website    String?
+  isVerified Boolean?
+  cultivars  Cultivar[]
+}
+
+enum Landrace {
+  Afghan
+  Thai
+  Columbian
+  Mexican
+  Jamaican
+}
+
+model Terpene {
+  id        Int        @id
+  name      String
+  cultivars Cultivar[] // Many-to-many relationship
+}
+
+model Flavor {
+  id        Int        @id
+  name      String
+  cultivars Cultivar[] // Many-to-many relationship
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Cultivar {
+  id           BigInt    @id @default(autoincrement())
+  name         String
+  description  String
+  imageUrl     String?
+  isVerified   Boolean   @default(false)
+  landrace     Landrace? // optional for landrace types
+  isUnknown    Boolean   @default(false) // Flag to indicate unknown cultivar
+  isAutoflower Boolean   @default(false)
+  breederId    BigInt?
+  breeder      Breeder?  @relation(fields: [breederId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  flavors      Flavor[]
+  terpenes     Terpene[]
+  seeds        Seed[]
+
+  motherLineage   GeneticLineage[] @relation("MotherLineage")
+  fatherLineage   GeneticLineage[] @relation("FatherLineage")
+  cultivarLineage GeneticLineage[] @relation("CultivarLineage")
+
+  growCycles      GrowCycle[]
+  growerCultivars GrowerCultivar[]
+}
+
+model GeneticLineage {
+  id         BigInt    @id @default(autoincrement())
+  cultivarId BigInt
+  cultivar   Cultivar  @relation("CultivarLineage", fields: [cultivarId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  motherId   BigInt? // ID of the mother cultivar @unique @unique
+  fatherId   BigInt? // ID of the father cultivar
+  mother     Cultivar? @relation("MotherLineage", fields: [motherId], references: [id])
+  father     Cultivar? @relation("FatherLineage", fields: [fatherId], references: [id])
+}
+
+model GrowerCultivar {
+  id               String      @id @default(uuid()) @db.Uuid
+  name             String
+  description      String
+  growerId         String      @db.Uuid
+  grower           User        @relation(fields: [growerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  linkedCultivarId BigInt?
+  linkedCultivar   Cultivar?   @relation(fields: [linkedCultivarId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seedType         SeedType?
+  growthType       GrowthType?
+  growCycles       GrowCycle[]
+  plantType        String?
+}
+
+enum SeedType {
+  REGULAR
+  FEMINIZED
+}
+
+enum GrowthType {
+  PHOTOPERIOD
+  AUTOFLOWER
+}
+
+model Vault {
+  id     Int    @id @default(autoincrement())
+  seeds  Seed[]
+  userId String @unique @db.Uuid
+  user   User?  @relation(fields: [userId], references: [id])
+}
+
+model Seed {
+  id         BigInt          @id @default(autoincrement())
+  cultivarId BigInt
+  cultivar   Cultivar        @relation(fields: [cultivarId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vaultId    Int
+  vault      Vault           @relation(fields: [vaultId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status     SeedStatus
+  plantId    BigInt?
+  plant      GrowCyclePlant?
+}
+
+enum SeedStatus {
+  AVAILABLE
+  LOCKED
+  GERMINATED
+  FAILED
+}
+
+model GrowCyclePlant {
+  id          BigInt    @id @default(autoincrement())
+  growCycleId String    @db.Uuid
+  growCycle   GrowCycle @relation(fields: [growCycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seedId      BigInt    @unique
+  seed        Seed      @relation(fields: [seedId], references: [id])
+}
+
+///  ======================================== GROW CYLE MODELS ========================================
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+
+model GrowCycle {
+  id          String          @id @default(uuid()) @db.Uuid
+  name        String
+  status      GrowCycleStatus
+  description String?
+  startDate   DateTime?       @db.Date
+  endDate     DateTime?       @db.Date
+  createdAt   DateTime?       @default(now()) @db.Timestamptz(6)
+  userId      String          @db.Uuid
+  user        User            @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  growSpaceId  String?        @db.Uuid
+  growSpace    GrowSpace?     @relation(fields: [growSpaceId], references: [id], onUpdate: NoAction)
+  journals     Journal[]
+  journalEntry JournalEntry[]
+
+  // PLANTS
+  cultivarId              BigInt?
+  cultivar                Cultivar?        @relation(fields: [cultivarId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  growerCultivarId        String?          @db.Uuid
+  growerCultivar          GrowerCultivar?  @relation(fields: [growerCultivarId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plants                  GrowCyclePlant[]
+  expectedHarvestDate     DateTime?        @db.Date
+  expectedFlowerStartDate DateTime?        @db.Date
+  GrowAction       GrowAction[]
+  startingGrowStage       GrowStage?
+  currentGrowStage        GrowStage?
+  initialPlantCount       Int?             @default(1)
+}
+
+enum GrowCycleStatus {
+  DRAFT
+  PREPARING
+  ACTIVE
+  COMPLETED
+  CANCELED
+  ARCHIVED
+}
+
+
+model GrowAction {
+  id                String             @id @default(uuid()) @db.Uuid
+  type              ActionMeasureType?
+  isMeasurement     Boolean?           @default(false)
+  note              String?
+  value             String?
+  actionDate        DateTime?          @db.Date
+  createdAt         DateTime?          @default(now()) @db.Timestamptz(6)
+  userId            String             @db.Uuid
+  user              User               @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  growCycleId String?    @db.Uuid
+  growCycle   GrowCycle? @relation(fields: [growCycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+enum ActionMeasureType {
+  WATER
+  TRIM
+  FEED
+  HARVEST
+  TRAINING
+  OTHER
+  VPD
+  TEMPERATURE
+  LIGHT_INTENSITY
+  HUMIDITY
+}
+
+enum GrowStage  {
+  SEED
+  SEEDLING
+  CLONE
+  VEGETATIVE
+  FLOWER
+  HARVEST
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+enum GrowSpaceEnvironment {
+  INDOOR
+  OUTDOOR
+}
+
+enum GrowSpaceType {
+  TENT
+  GROW_ROOM
+  OTHER
+}
+
+model GrowSpace {
+  id             String                @id @default(uuid()) @db.Uuid
+  createdAt      DateTime?             @default(now()) @db.Timestamptz(6)
+  name           String?
+  location       String?
+  userId         String                @db.Uuid
+  user           User                  @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  environment    GrowSpaceEnvironment?
+  spaceType      GrowSpaceType?
+  otherSpaceType String?
+  length         Float?
+  width          Float?
+  height         Float?
+  growCycles     GrowCycle[]
+}
+
+///  ======================================== JOURNAL MODELS ========================================
+
+model JournalEntry {
+  id          BigInt                   @id @default(autoincrement())
+  createdAt   DateTime?                @default(now()) @db.Timestamptz(6)
+  entryText   String?
+  createdBy   String                   @db.Uuid
+  user        User                     @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  journalId   BigInt?
+  growCycleId String?                  @db.Uuid
+  growCycle   GrowCycle?               @relation(fields: [growCycleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  journal     Journal?                 @relation(fields: [journalId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  attachments JournalEntryAttachment[]
+  likes       JournalEntryLike[]
+}
+
+model JournalEntryLike {
+  id             Int           @id @default(autoincrement())
+  journalEntryId BigInt?
+  userId         String        @db.Uuid
+  user           User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  JournalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  @@unique([journalEntryId, userId], name: "journalEntryId_userId")
+}
+
+model Journal {
+  id             BigInt         @id @default(autoincrement())
+  createdAt      DateTime?      @default(now()) @db.Timestamptz(6)
+  name           String?        @db.VarChar
+  growCycleId    String?        @db.Uuid
+  journalEntries JournalEntry[]
+  growCycle      GrowCycle?     @relation(fields: [growCycleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model JournalEntryAttachment {
+  id             BigInt        @id @default(autoincrement())
+  journalEntryId BigInt
+  fileUrl        String        @db.Text
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}

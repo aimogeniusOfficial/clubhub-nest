@@ -1,0 +1,26 @@
+{
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true
+    },
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.formatOnSave": true,
+    "editor.insertSpaces": true,
+    "editor.rulers": [112],
+    "editor.tabSize": 2,
+  
+    "eslint.alwaysShowStatus": true,
+    "eslint.format.enable": true,
+    "eslint.packageManager": "yarn",
+    "eslint.validate": ["javascript", "typescript"],
+    "eslint.workingDirectories": ["web", "web/cypress"],
+  
+    "prettier.prettierPath": "~/.nvm/versions/node/v19.8.1/lib/node_modules/prettier",
+    "prettier.requireConfig": true,
+    "prettier.configPath": "./config/prettier.config.js",
+  
+    "[json]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "compile-hero.disable-compile-files-on-did-save-code": false,
+}  
