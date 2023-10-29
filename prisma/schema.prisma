@@ -33,6 +33,10 @@ model Club {
   name        String    @default("")
   description String?   @default("")
   category    BigInt    
+  logo_url    String?   @default("")
+  members     Int       @default(0)
+  instagram   String?   @default("")
+  tiktok      String?   @default("")
   categoryId  ClubCategory @relation(fields: [category], references: [id])
 }
 
