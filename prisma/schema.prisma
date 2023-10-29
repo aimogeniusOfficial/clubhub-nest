@@ -27,6 +27,21 @@ model User {
   JournalEntryLike  JournalEntryLike[]
 }
 
+model Club {
+  id          BigInt    @id @default(autoincrement())
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  name        String    @default("")
+  description String?   @default("")
+  category    BigInt    
+  categoryId  ClubCategory @relation(fields: [category], references: [id])
+}
+
+model ClubCategory {
+  id          BigInt    @id @default(autoincrement())
+  name        String
+  club        Club[]
+}
+
 model AccessRole {
   id          BigInt     @id @default(autoincrement())
   createdAt   DateTime   @default(now()) @db.Timestamptz(6)
