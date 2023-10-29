@@ -41,6 +41,7 @@ import { FeatureFlagModule } from './modules/feature-flag/feature-flag.module';
 import { AccessRoleModule } from './modules/access-role/access-role.module';
 import { GrowerModule } from './modules/grower/grower.module';
 import { CnnModule } from './cnn/cnn.module';
+import { ClubsModule } from './+supabase/clubs/clubs.module';
 
 @Module({
   imports: [
@@ -70,7 +71,7 @@ import { CnnModule } from './cnn/cnn.module';
     FeatureFlagModule,
     AccessRoleModule,
     GrowerModule,
-    CnnModule,
+    ClubsModule,
   ],
   controllers: [
     AppController,
